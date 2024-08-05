@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>日付と時間機能付きTodoリスト</title>
     <style>
-        /* 基本的なスタイリング */
+        /* CSSスタイリング */
         body {
             font-family: Arial, sans-serif;
             max-width: 600px;
@@ -72,7 +72,6 @@
         .delete-btn:hover {
             background-color: #d32f2f;
         }
-        /* 新しく追加されたスタイル */
         .task-info {
             display: flex;
             flex-direction: column;
@@ -88,7 +87,6 @@
     <p>タスク、期日、時間を入力して「追加」ボタンをクリックしてください。タスクをクリックすると完了としてマークされます。</p>
     <div id="task-container">
         <input type="text" id="new-task" placeholder="新しいタスクを入力...">
-        <!-- 新しく追加された日付と時間の入力欄 -->
         <input type="date" id="due-date">
         <input type="time" id="due-time">
         <button id="add-task">追加</button>
@@ -100,7 +98,6 @@
         const newTaskInput = document.getElementById('new-task');
         const addTaskButton = document.getElementById('add-task');
         const taskList = document.getElementById('task-list');
-        // 新しく追加された日付と時間の入力欄の取得
         const dueDateInput = document.getElementById('due-date');
         const dueTimeInput = document.getElementById('due-time');
 
@@ -115,13 +112,11 @@
         // タスク追加機能
         function addTask() {
             const taskText = newTaskInput.value.trim();
-            // 新しく追加された日付と時間の取得
             const dueDate = dueDateInput.value;
             const dueTime = dueTimeInput.value;
             
             if (taskText !== '') {
                 const li = document.createElement('li');
-                // 新しく追加された日付と時間の表示
                 li.innerHTML = `
                     <div class="task-info">
                         <span>${taskText}</span>
@@ -133,7 +128,6 @@
                 li.querySelector('.delete-btn').addEventListener('click', deleteTask);
                 taskList.appendChild(li);
                 newTaskInput.value = '';
-                // 入力欄のクリア
                 dueDateInput.value = '';
                 dueTimeInput.value = '';
             }
@@ -153,7 +147,7 @@
             e.target.closest('li').remove();
         }
 
-        // 新しく追加された日付フォーマット機能
+        // 日付フォーマット機能
         function formatDueDate(date, time) {
             if (!date) return '';
             const formattedDate = new Date(date + 'T' + (time || '00:00')).toLocaleString('ja-JP', {
