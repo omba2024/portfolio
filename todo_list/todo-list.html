@@ -3,9 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>日付と時間機能付きTodoリスト</title>
+    <title>修正された日付と時間機能付きTodoリスト</title>
     <style>
-        /* CSSスタイリング */
+        /* 以前のCSSスタイルをここに記述 */
         body {
             font-family: Arial, sans-serif;
             max-width: 600px;
@@ -83,7 +83,7 @@
     </style>
 </head>
 <body>
-    <h1>日付と時間機能付きTodoリスト</h1>
+    <h1>修正された日付と時間機能付きTodoリスト</h1>
     <p>タスク、期日、時間を入力して「追加」ボタンをクリックしてください。タスクをクリックすると完了としてマークされます。</p>
     <div id="task-container">
         <input type="text" id="new-task" placeholder="新しいタスクを入力...">
@@ -94,61 +94,9 @@
     <ul id="task-list"></ul>
 
     <script>
-        // DOM要素の取得
-        const newTaskInput = document.getElementById('new-task');
-        const addTaskButton = document.getElementById('add-task');
-        const taskList = document.getElementById('task-list');
-        const dueDateInput = document.getElementById('due-date');
-        const dueTimeInput = document.getElementById('due-time');
-
-        // イベントリスナーの設定
-        addTaskButton.addEventListener('click', addTask);
-        newTaskInput.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                addTask();
-            }
-        });
-
-        // タスク追加機能
-        function addTask() {
-            const taskText = newTaskInput.value.trim();
-            const dueDate = dueDateInput.value;
-            const dueTime = dueTimeInput.value;
-            
-            if (taskText !== '') {
-                const li = document.createElement('li');
-                li.innerHTML = `
-                    <div class="task-info">
-                        <span>${taskText}</span>
-                        <span class="task-date">${formatDueDate(dueDate, dueTime)}</span>
-                    </div>
-                    <button class="delete-btn">削除</button>
-                `;
-                li.addEventListener('click', toggleComplete);
-                li.querySelector('.delete-btn').addEventListener('click', deleteTask);
-                taskList.appendChild(li);
-                newTaskInput.value = '';
-                dueDateInput.value = '';
-                dueTimeInput.value = '';
-            }
-        }
-
-        // タスク完了トグル機能
-        function toggleComplete(e) {
-            if (e.target.tagName === 'LI' || e.target.tagName === 'SPAN') {
-                const li = e.target.closest('li');
-                li.classList.toggle('completed');
-            }
-        }
-
-        // タスク削除機能
-        function deleteTask(e) {
-            e.stopPropagation();
-            e.target.closest('li').remove();
-        }
-
-        // 日付フォーマット機能
-        function formatDueDate(date, time) {
+    // DateFormatter クラス
+    class DateFormatter {
+        formatDueDate(date, time) {
             if (!date) return '';
             const formattedDate = new Date(date + 'T' + (time || '00:00')).toLocaleString('ja-JP', {
                 year: 'numeric',
@@ -160,6 +108,120 @@
             });
             return `期限: ${formattedDate}`;
         }
+    }
+
+    // TodoList クラス
+    class TodoList {
+        constructor(dateFormatter) {
+            this.tasks = [];
+            this.dateFormatter = dateFormatter;
+        }
+
+        addTask(taskText, dueDate, dueTime) {
+            if (taskText.trim() === '') return null;
+            
+            const task = {
+                id: Date.now(),
+                text: taskText,
+                completed: false,
+                dueDate: this.dateFormatter.formatDueDate(dueDate, dueTime)
+            };
+            
+            this.tasks.push(task);
+            return task;
+        }
+
+        toggleTaskComplete(taskId) {
+            const task = this.tasks.find(t => t.id === taskId);
+            if (task) {
+                task.completed = !task.completed;
+                return task;
+            }
+            return null;
+        }
+
+        deleteTask(taskId) {
+            const index = this.tasks.findIndex(t => t.id === taskId);
+            if (index !== -1) {
+                return this.tasks.splice(index, 1)[0];
+            }
+            return null;
+        }
+    }
+
+    // DOMInteractions クラス
+    class DOMInteractions {
+        constructor(todoList) {
+            this.todoList = todoList;
+            this.newTaskInput = document.getElementById('new-task');
+            this.addTaskButton = document.getElementById('add-task');
+            this.taskList = document.getElementById('task-list');
+            this.dueDateInput = document.getElementById('due-date');
+            this.dueTimeInput = document.getElementById('due-time');
+        }
+
+        initializeEventListeners() {
+            this.addTaskButton.addEventListener('click', () => this.handleAddTask());
+            this.newTaskInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') this.handleAddTask();
+            });
+            this.taskList.addEventListener('click', (e) => this.handleTaskListClick(e));
+        }
+
+        handleAddTask() {
+            const task = this.todoList.addTask(
+                this.newTaskInput.value,
+                this.dueDateInput.value,
+                this.dueTimeInput.value
+            );
+            if (task) {
+                this.renderTask(task);
+                this.clearInputs();
+            }
+        }
+
+        handleTaskListClick(e) {
+            const li = e.target.closest('li');
+            if (!li) return;
+
+            const taskId = parseInt(li.dataset.taskId);
+            
+            if (e.target.classList.contains('delete-btn')) {
+                this.todoList.deleteTask(taskId);
+                li.remove();
+            } else {
+                const updatedTask = this.todoList.toggleTaskComplete(taskId);
+                if (updatedTask) {
+                    li.classList.toggle('completed', updatedTask.completed);
+                }
+            }
+        }
+
+        renderTask(task) {
+            const li = document.createElement('li');
+            li.dataset.taskId = task.id;
+            li.innerHTML = `
+                <div class="task-info">
+                    <span>${task.text}</span>
+                    <span class="task-date">${task.dueDate}</span>
+                </div>
+                <button class="delete-btn">削除</button>
+            `;
+            this.taskList.appendChild(li);
+        }
+
+        clearInputs() {
+            this.newTaskInput.value = '';
+            this.dueDateInput.value = '';
+            this.dueTimeInput.value = '';
+        }
+    }
+
+    // アプリケーションの初期化
+    const dateFormatter = new DateFormatter();
+    const todoList = new TodoList(dateFormatter);
+    const domInteractions = new DOMInteractions(todoList);
+    domInteractions.initializeEventListeners();
     </script>
 </body>
 </html>
