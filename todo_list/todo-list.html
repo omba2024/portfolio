@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>シンプルTodoリスト</title>
+    <title>日付と時間機能付きTodoリスト</title>
     <style>
+        /* 基本的なスタイリング */
         body {
             font-family: Arial, sans-serif;
-            max-width: 500px;
+            max-width: 600px;
             margin: 0 auto;
             padding: 20px;
             background-color: #f0f0f0;
@@ -18,14 +19,18 @@
         }
         #task-container {
             display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
             margin-bottom: 20px;
         }
-        #new-task {
-            flex-grow: 1;
+        #new-task, #due-date, #due-time {
             padding: 10px;
             font-size: 16px;
             border: 1px solid #ddd;
-            border-radius: 4px 0 0 4px;
+            border-radius: 4px;
+        }
+        #new-task {
+            flex-grow: 1;
         }
         #add-task {
             padding: 10px 20px;
@@ -33,7 +38,7 @@
             background-color: #4CAF50;
             color: white;
             border: none;
-            border-radius: 0 4px 4px 0;
+            border-radius: 4px;
             cursor: pointer;
         }
         #add-task:hover {
@@ -67,22 +72,39 @@
         .delete-btn:hover {
             background-color: #d32f2f;
         }
+        /* 新しく追加されたスタイル */
+        .task-info {
+            display: flex;
+            flex-direction: column;
+        }
+        .task-date {
+            font-size: 0.8em;
+            color: #666;
+        }
     </style>
 </head>
 <body>
-    <h1>シンプルTodoリスト</h1>
-    <p>タスクを入力して「追加」ボタンをクリックしてください。タスクをクリックすると完了としてマークされます。</p>
+    <h1>日付と時間機能付きTodoリスト</h1>
+    <p>タスク、期日、時間を入力して「追加」ボタンをクリックしてください。タスクをクリックすると完了としてマークされます。</p>
     <div id="task-container">
         <input type="text" id="new-task" placeholder="新しいタスクを入力...">
+        <!-- 新しく追加された日付と時間の入力欄 -->
+        <input type="date" id="due-date">
+        <input type="time" id="due-time">
         <button id="add-task">追加</button>
     </div>
     <ul id="task-list"></ul>
 
     <script>
+        // DOM要素の取得
         const newTaskInput = document.getElementById('new-task');
         const addTaskButton = document.getElementById('add-task');
         const taskList = document.getElementById('task-list');
+        // 新しく追加された日付と時間の入力欄の取得
+        const dueDateInput = document.getElementById('due-date');
+        const dueTimeInput = document.getElementById('due-time');
 
+        // イベントリスナーの設定
         addTaskButton.addEventListener('click', addTask);
         newTaskInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
@@ -90,32 +112,60 @@
             }
         });
 
+        // タスク追加機能
         function addTask() {
             const taskText = newTaskInput.value.trim();
+            // 新しく追加された日付と時間の取得
+            const dueDate = dueDateInput.value;
+            const dueTime = dueTimeInput.value;
+            
             if (taskText !== '') {
                 const li = document.createElement('li');
+                // 新しく追加された日付と時間の表示
                 li.innerHTML = `
-                    <span>${taskText}</span>
+                    <div class="task-info">
+                        <span>${taskText}</span>
+                        <span class="task-date">${formatDueDate(dueDate, dueTime)}</span>
+                    </div>
                     <button class="delete-btn">削除</button>
                 `;
                 li.addEventListener('click', toggleComplete);
                 li.querySelector('.delete-btn').addEventListener('click', deleteTask);
                 taskList.appendChild(li);
                 newTaskInput.value = '';
+                // 入力欄のクリア
+                dueDateInput.value = '';
+                dueTimeInput.value = '';
             }
         }
 
+        // タスク完了トグル機能
         function toggleComplete(e) {
             if (e.target.tagName === 'LI' || e.target.tagName === 'SPAN') {
-                const li = e.target.tagName === 'LI' ? e.target : e.target.parentElement;
+                const li = e.target.closest('li');
                 li.classList.toggle('completed');
             }
         }
 
+        // タスク削除機能
         function deleteTask(e) {
             e.stopPropagation();
-            e.target.parentElement.remove();
+            e.target.closest('li').remove();
+        }
+
+        // 新しく追加された日付フォーマット機能
+        function formatDueDate(date, time) {
+            if (!date) return '';
+            const formattedDate = new Date(date + 'T' + (time || '00:00')).toLocaleString('ja-JP', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: 'numeric',
+                minute: 'numeric',
+                hour12: false
+            });
+            return `期限: ${formattedDate}`;
         }
     </script>
 </body>
-</html> 
+</html>
