@@ -3,9 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>修正された日付と時間機能付きTodoリスト</title>
+    <title>データ永続化機能付きTodoリスト</title>
     <style>
-        /* 以前のCSSスタイルをここに記述 */
         body {
             font-family: Arial, sans-serif;
             max-width: 600px;
@@ -83,7 +82,7 @@
     </style>
 </head>
 <body>
-    <h1>修正された日付と時間機能付きTodoリスト</h1>
+    <h1>データ永続化機能付きTodoリスト</h1>
     <p>タスク、期日、時間を入力して「追加」ボタンをクリックしてください。タスクをクリックすると完了としてマークされます。</p>
     <div id="task-container">
         <input type="text" id="new-task" placeholder="新しいタスクを入力...">
@@ -95,6 +94,7 @@
 
     <script>
     // DateFormatter クラス
+    // このクラスは日付と時間のフォーマットを担当します。
     class DateFormatter {
         formatDueDate(date, time) {
             if (!date) return '';
@@ -110,11 +110,39 @@
         }
     }
 
+    // StorageManager クラス
+    // このクラスはローカルストレージとのデータのやり取りを管理します。
+    class StorageManager {
+        constructor() {
+            this.storageKey = 'todoListTasks';
+        }
+
+        saveTasks(tasks) {
+            localStorage.setItem(this.storageKey, JSON.stringify(tasks));
+        }
+
+        loadTasks() {
+            const tasksJson = localStorage.getItem(this.storageKey);
+            return tasksJson ? JSON.parse(tasksJson) : [];
+        }
+    }
+
     // TodoList クラス
+    // このクラスはタスクの管理と操作を担当します。
     class TodoList {
-        constructor(dateFormatter) {
+        constructor(dateFormatter, storageManager) {
             this.tasks = [];
             this.dateFormatter = dateFormatter;
+            this.storageManager = storageManager;
+            this.loadTasks();
+        }
+
+        loadTasks() {
+            this.tasks = this.storageManager.loadTasks();
+        }
+
+        saveTasks() {
+            this.storageManager.saveTasks(this.tasks);
         }
 
         addTask(taskText, dueDate, dueTime) {
@@ -128,6 +156,7 @@
             };
             
             this.tasks.push(task);
+            this.saveTasks();
             return task;
         }
 
@@ -135,6 +164,7 @@
             const task = this.tasks.find(t => t.id === taskId);
             if (task) {
                 task.completed = !task.completed;
+                this.saveTasks();
                 return task;
             }
             return null;
@@ -143,13 +173,16 @@
         deleteTask(taskId) {
             const index = this.tasks.findIndex(t => t.id === taskId);
             if (index !== -1) {
-                return this.tasks.splice(index, 1)[0];
+                const deletedTask = this.tasks.splice(index, 1)[0];
+                this.saveTasks();
+                return deletedTask;
             }
             return null;
         }
     }
 
     // DOMInteractions クラス
+    // このクラスはDOMとの相互作用を管理します。
     class DOMInteractions {
         constructor(todoList) {
             this.todoList = todoList;
@@ -166,6 +199,9 @@
                 if (e.key === 'Enter') this.handleAddTask();
             });
             this.taskList.addEventListener('click', (e) => this.handleTaskListClick(e));
+
+            // 保存されたタスクを読み込んで表示
+            this.renderSavedTasks();
         }
 
         handleAddTask() {
@@ -200,6 +236,7 @@
         renderTask(task) {
             const li = document.createElement('li');
             li.dataset.taskId = task.id;
+            li.classList.toggle('completed', task.completed);
             li.innerHTML = `
                 <div class="task-info">
                     <span>${task.text}</span>
@@ -208,6 +245,12 @@
                 <button class="delete-btn">削除</button>
             `;
             this.taskList.appendChild(li);
+        }
+
+        renderSavedTasks() {
+            this.todoList.tasks.forEach(task => {
+                this.renderTask(task);
+            });
         }
 
         clearInputs() {
@@ -219,7 +262,8 @@
 
     // アプリケーションの初期化
     const dateFormatter = new DateFormatter();
-    const todoList = new TodoList(dateFormatter);
+    const storageManager = new StorageManager();
+    const todoList = new TodoList(dateFormatter, storageManager);
     const domInteractions = new DOMInteractions(todoList);
     domInteractions.initializeEventListeners();
     </script>
