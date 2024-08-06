@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>データ永続化機能付きTodoリスト</title>
+    <title>編集機能と永続化機能付きTodoリスト</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -60,29 +60,55 @@
             text-decoration: line-through;
             color: #888;
         }
-        .delete-btn {
+        .delete-btn, .edit-btn {
             background-color: #f44336;
             color: white;
             border: none;
             padding: 5px 10px;
             border-radius: 3px;
             cursor: pointer;
+            margin-left: 5px;
+        }
+        .edit-btn {
+            background-color: #2196F3;
         }
         .delete-btn:hover {
             background-color: #d32f2f;
         }
+        .edit-btn:hover {
+            background-color: #1976D2;
+        }
         .task-info {
             display: flex;
             flex-direction: column;
+            flex-grow: 1;
         }
         .task-date {
             font-size: 0.8em;
             color: #666;
         }
+        .edit-mode .task-text,
+        .edit-mode .task-date {
+            display: none;
+        }
+        .edit-mode .edit-form {
+            display: flex;
+            flex-direction: column;
+        }
+        .edit-form {
+            display: none;
+        }
+        .edit-form input {
+            margin-bottom: 5px;
+        }
+        .edit-buttons {
+            display: flex;
+            justify-content: space-between;
+        }
     </style>
 </head>
 <body>
-    <h1>データ永続化機能付きTodoリスト</h1>
+    <h1>編集機能と永続化機能付きTodoリスト</h1>
     <p>タスク、期日、時間を入力して「追加」ボタンをクリックしてください。タスクをクリックすると完了としてマークされます。</p>
     <div id="task-container">
         <input type="text" id="new-task" placeholder="新しいタスクを入力...">
@@ -93,8 +119,6 @@
     <ul id="task-list"></ul>
 
     <script>
-    // DateFormatter クラス
-    // このクラスは日付と時間のフォーマットを担当します。
     class DateFormatter {
         formatDueDate(date, time) {
             if (!date) return '';
@@ -110,8 +134,6 @@
         }
     }
 
-    // StorageManager クラス
-    // このクラスはローカルストレージとのデータのやり取りを管理します。
     class StorageManager {
         constructor() {
             this.storageKey = 'todoListTasks';
@@ -127,8 +149,6 @@
         }
     }
 
-    // TodoList クラス
-    // このクラスはタスクの管理と操作を担当します。
     class TodoList {
         constructor(dateFormatter, storageManager) {
             this.tasks = [];
@@ -179,10 +199,19 @@
             }
             return null;
         }
+
+        editTask(taskId, newText, newDate, newTime) {
+            const task = this.tasks.find(t => t.id === taskId);
+            if (task) {
+                task.text = newText;
+                task.dueDate = this.dateFormatter.formatDueDate(newDate, newTime);
+                this.saveTasks();
+                return task;
+            }
+            return null;
+        }
     }
 
-    // DOMInteractions クラス
-    // このクラスはDOMとの相互作用を管理します。
     class DOMInteractions {
         constructor(todoList) {
             this.todoList = todoList;
@@ -225,6 +254,8 @@
             if (e.target.classList.contains('delete-btn')) {
                 this.todoList.deleteTask(taskId);
                 li.remove();
+            } else if (e.target.classList.contains('edit-btn')) {
+                this.handleEditButtonClick(e);
             } else {
                 const updatedTask = this.todoList.toggleTaskComplete(taskId);
                 if (updatedTask) {
@@ -239,12 +270,29 @@
             li.classList.toggle('completed', task.completed);
             li.innerHTML = `
                 <div class="task-info">
-                    <span>${task.text}</span>
+                    <span class="task-text">${task.text}</span>
                     <span class="task-date">${task.dueDate}</span>
+                    <form class="edit-form">
+                        <input type="text" class="edit-text" value="${task.text}">
+                        <input type="date" class="edit-date">
+                        <input type="time" class="edit-time">
+                        <div class="edit-buttons">
+                            <button type="submit" class="save-btn">保存</button>
+                            <button type="button" class="cancel-btn">キャンセル</button>
+                        </div>
+                    </form>
                 </div>
-                <button class="delete-btn">削除</button>
+                <div>
+                    <button class="edit-btn">編集</button>
+                    <button class="delete-btn">削除</button>
+                </div>
             `;
             this.taskList.appendChild(li);
+
+            // 編集フォームのイベントリスナーを設定
+            const form = li.querySelector('.edit-form');
+            form.addEventListener('submit', (e) => this.handleEditFormSubmit(e, task.id));
+            li.querySelector('.cancel-btn').addEventListener('click', () => this.toggleEditMode(li, false));
         }
 
         renderSavedTasks() {
@@ -257,6 +305,39 @@
             this.newTaskInput.value = '';
             this.dueDateInput.value = '';
             this.dueTimeInput.value = '';
+        }
+
+        handleEditButtonClick(e) {
+            const li = e.target.closest('li');
+            this.toggleEditMode(li, true);
+        }
+
+        toggleEditMode(li, isEditing) {
+            li.classList.toggle('edit-mode', isEditing);
+            if (isEditing) {
+                const taskDate = li.querySelector('.task-date').textContent.split(': ')[1];
+                const [datePart, timePart] = taskDate.split(' ');
+                const [year, month, day] = datePart.split('年').flatMap(part => part.split('月').flatMap(p => p.split('日')));
+                const [hour, minute] = timePart.split(':');
+                
+                li.querySelector('.edit-date').value = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+                li.querySelector('.edit-time').value = `${hour}:${minute}`;
+            }
+        }
+
+        handleEditFormSubmit(e, taskId) {
+            e.preventDefault();
+            const li = e.target.closest('li');
+            const newText = li.querySelector('.edit-text').value;
+            const newDate = li.querySelector('.edit-date').value;
+            const newTime = li.querySelector('.edit-time').value;
+
+            const updatedTask = this.todoList.editTask(taskId, newText, newDate, newTime);
+            if (updatedTask) {
+                li.querySelector('.task-text').textContent = updatedTask.text;
+                li.querySelector('.task-date').textContent = updatedTask.dueDate;
+                this.toggleEditMode(li, false);
+            }
         }
     }
 
