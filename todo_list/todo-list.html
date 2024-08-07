@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>編集機能と永続化機能付きTodoリスト</title>
+    <title>タスク順序変更機能を追加Todoリスト</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -55,6 +55,10 @@
             justify-content: space-between;
             align-items: center;
             border-radius: 4px;
+            cursor: grab; /* ドラッグ&ドロップ用のカーソル */
+        }
+        li.dragging {
+            opacity: 0.5; /* ドラッグ中のスタイル */
         }
         .completed {
             text-decoration: line-through;
@@ -135,6 +139,7 @@
             return `期限: ${formattedDate}`;
         }
     }
+
     // StorageManager クラス
     // このクラスはローカルストレージとのデータのやり取りを管理します。
     class StorageManager {
@@ -151,6 +156,7 @@
             return tasksJson ? JSON.parse(tasksJson) : [];
         }
     }
+
     // TodoList クラス
     // このクラスはタスクの管理と操作を担当します。
     class TodoList {
@@ -171,14 +177,14 @@
 
         addTask(taskText, dueDate, dueTime) {
             if (taskText.trim() === '') return null;
-            
+
             const task = {
                 id: Date.now(),
                 text: taskText,
                 completed: false,
                 dueDate: this.dateFormatter.formatDueDate(dueDate, dueTime)
             };
-            
+
             this.tasks.push(task);
             this.saveTasks();
             return task;
@@ -214,8 +220,16 @@
             }
             return null;
         }
+
+        reorderTasks(startIndex, endIndex) {
+            const [movedTask] = this.tasks.splice(startIndex, 1);
+            this.tasks.splice(endIndex, 0, movedTask);
+            this.saveTasks();
+        }
     }
-// このクラスはDOMとの相互作用を管理します。
+
+    // DOMInteractions クラス
+    // このクラスはDOMとの相互作用を管理します。
     class DOMInteractions {
         constructor(todoList) {
             this.todoList = todoList;
@@ -233,7 +247,12 @@
             });
             this.taskList.addEventListener('click', (e) => this.handleTaskListClick(e));
 
-// 保存されたタスクを読み込んで表示
+            // ドラッグ&ドロップイベントリスナーの追加
+            this.taskList.addEventListener('dragstart', (e) => this.handleDragStart(e));
+            this.taskList.addEventListener('dragover', (e) => this.handleDragOver(e));
+            this.taskList.addEventListener('drop', (e) => this.handleDrop(e));
+
+            // 保存されたタスクを読み込んで表示
             this.renderSavedTasks();
         }
 
@@ -254,7 +273,7 @@
             if (!li) return;
 
             const taskId = parseInt(li.dataset.taskId);
-            
+
             if (e.target.classList.contains('delete-btn')) {
                 this.todoList.deleteTask(taskId);
                 li.remove();
@@ -271,38 +290,30 @@
         renderTask(task) {
             const li = document.createElement('li');
             li.dataset.taskId = task.id;
-            li.classList.toggle('completed', task.completed);
+            li.draggable = true; // ドラッグ可能に設定
+            li.className = task.completed ? 'completed' : '';
             li.innerHTML = `
                 <div class="task-info">
                     <span class="task-text">${task.text}</span>
                     <span class="task-date">${task.dueDate}</span>
-                    <form class="edit-form">
-                        <input type="text" class="edit-text" value="${task.text}">
-                        <input type="date" class="edit-date">
-                        <input type="time" class="edit-time">
+                    <div class="edit-form">
+                        <input type="text" value="${task.text}" class="edit-task-input">
+                        <input type="date" value="${this.todoList.tasks.find(t => t.id === task.id).dueDate}">
+                        <input type="time" value="${this.todoList.tasks.find(t => t.id === task.id).dueTime}">
                         <div class="edit-buttons">
-                            <button type="submit" class="save-btn">保存</button>
-                            <button type="button" class="cancel-btn">キャンセル</button>
+                            <button class="save-edit-btn">保存</button>
+                            <button class="cancel-edit-btn">キャンセル</button>
                         </div>
-                    </form>
+                    </div>
                 </div>
-                <div>
-                    <button class="edit-btn">編集</button>
-                    <button class="delete-btn">削除</button>
-                </div>
+                <button class="edit-btn">編集</button>
+                <button class="delete-btn">削除</button>
             `;
             this.taskList.appendChild(li);
-
-            // 編集フォームのイベントリスナーを設定
-            const form = li.querySelector('.edit-form');
-            form.addEventListener('submit', (e) => this.handleEditFormSubmit(e, task.id));
-            li.querySelector('.cancel-btn').addEventListener('click', () => this.toggleEditMode(li, false));
         }
 
         renderSavedTasks() {
-            this.todoList.tasks.forEach(task => {
-                this.renderTask(task);
-            });
+            this.todoList.tasks.forEach(task => this.renderTask(task));
         }
 
         clearInputs() {
@@ -313,43 +324,64 @@
 
         handleEditButtonClick(e) {
             const li = e.target.closest('li');
-            this.toggleEditMode(li, true);
-        }
-
-        toggleEditMode(li, isEditing) {
-            li.classList.toggle('edit-mode', isEditing);
-            if (isEditing) {
-                const taskDate = li.querySelector('.task-date').textContent.split(': ')[1];
-                const [datePart, timePart] = taskDate.split(' ');
-                const [year, month, day] = datePart.split('年').flatMap(part => part.split('月').flatMap(p => p.split('日')));
-                const [hour, minute] = timePart.split(':');
-                
-                li.querySelector('.edit-date').value = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
-                li.querySelector('.edit-time').value = `${hour}:${minute}`;
+            if (li.classList.contains('edit-mode')) {
+                this.exitEditMode(li);
+            } else {
+                this.enterEditMode(li);
             }
         }
 
-        handleEditFormSubmit(e, taskId) {
+        enterEditMode(li) {
+            li.classList.add('edit-mode');
+        }
+
+        exitEditMode(li) {
+            li.classList.remove('edit-mode');
+        }
+
+        // ドラッグ開始時の処理
+        handleDragStart(e) {
+            e.target.classList.add('dragging');
+            e.dataTransfer.setData('text/plain', e.target.dataset.taskId);
+        }
+
+        // ドラッグオーバー時の処理
+        handleDragOver(e) {
             e.preventDefault();
-            const li = e.target.closest('li');
-            const newText = li.querySelector('.edit-text').value;
-            const newDate = li.querySelector('.edit-date').value;
-            const newTime = li.querySelector('.edit-time').value;
-
-            const updatedTask = this.todoList.editTask(taskId, newText, newDate, newTime);
-            if (updatedTask) {
-                li.querySelector('.task-text').textContent = updatedTask.text;
-                li.querySelector('.task-date').textContent = updatedTask.dueDate;
-                this.toggleEditMode(li, false);
+            const draggingElement = document.querySelector('.dragging');
+            const dropTarget = e.target.closest('li');
+            if (dropTarget && draggingElement !== dropTarget) {
+                const bounding = dropTarget.getBoundingClientRect();
+                const offset = bounding.y + bounding.height / 2;
+                if (e.clientY - offset > 0) {
+                    dropTarget.after(draggingElement);
+                } else {
+                    dropTarget.before(draggingElement);
+                }
             }
+        }
+
+        // ドロップ時の処理
+        handleDrop(e) {
+            e.preventDefault();
+            const draggingElement = document.querySelector('.dragging');
+            draggingElement.classList.remove('dragging');
+            const dropTarget = e.target.closest('li');
+            if (!dropTarget) return;
+
+            const taskId = parseInt(draggingElement.dataset.taskId);
+            const targetId = parseInt(dropTarget.dataset.taskId);
+            const startIndex = this.todoList.tasks.findIndex(t => t.id === taskId);
+            const endIndex = this.todoList.tasks.findIndex(t => t.id === targetId);
+            this.todoList.reorderTasks(startIndex, endIndex);
         }
     }
 
-    // アプリケーションの初期化
     const dateFormatter = new DateFormatter();
     const storageManager = new StorageManager();
     const todoList = new TodoList(dateFormatter, storageManager);
     const domInteractions = new DOMInteractions(todoList);
+
     domInteractions.initializeEventListeners();
     </script>
 </body>
