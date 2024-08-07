@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シンプルTodoリスト</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 500px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f0f0;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        #task-container {
+            display: flex;
+            margin-bottom: 20px;
+        }
+        #new-task {
+            flex-grow: 1;
+            padding: 10px;
+            font-size: 16px;
+            border: 1px solid #ddd;
+            border-radius: 4px 0 0 4px;
+        }
+        #add-task {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 0 4px 4px 0;
+            cursor: pointer;
+        }
+        #add-task:hover {
+            background-color: #45a049;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            background-color: #fff;
+            margin-bottom: 10px;
+            padding: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-radius: 4px;
+        }
+        .completed {
+            text-decoration: line-through;
+            color: #888;
+        }
+        .delete-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .delete-btn:hover {
+            background-color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <h1>シンプルTodoリスト</h1>
+    <p>タスクを入力して「追加」ボタンをクリックしてください。タスクをクリックすると完了としてマークされます。</p>
+    <div id="task-container">
+        <input type="text" id="new-task" placeholder="新しいタスクを入力...">
+        <button id="add-task">追加</button>
+    </div>
+    <ul id="task-list"></ul>
+
+    <script>
+        const newTaskInput = document.getElementById('new-task');
+        const addTaskButton = document.getElementById('add-task');
+        const taskList = document.getElementById('task-list');
+
+        addTaskButton.addEventListener('click', addTask);
+        newTaskInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                addTask();
+            }
+        });
+
+        function addTask() {
+            const taskText = newTaskInput.value.trim();
+            if (taskText !== '') {
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span>${taskText}</span>
+                    <button class="delete-btn">削除</button>
+                `;
+                li.addEventListener('click', toggleComplete);
+                li.querySelector('.delete-btn').addEventListener('click', deleteTask);
+                taskList.appendChild(li);
+                newTaskInput.value = '';
+            }
+        }
+
+        function toggleComplete(e) {
+            if (e.target.tagName === 'LI' || e.target.tagName === 'SPAN') {
+                const li = e.target.tagName === 'LI' ? e.target : e.target.parentElement;
+                li.classList.toggle('completed');
+            }
+        }
+
+        function deleteTask(e) {
+            e.stopPropagation();
+            e.target.parentElement.remove();
+        }
+    </script>
+</body>
+</html> 
