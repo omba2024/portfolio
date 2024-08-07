@@ -119,6 +119,8 @@
     <ul id="task-list"></ul>
 
     <script>
+    // DateFormatter クラス
+    // このクラスは日付と時間のフォーマットを担当します。
     class DateFormatter {
         formatDueDate(date, time) {
             if (!date) return '';
@@ -133,7 +135,8 @@
             return `期限: ${formattedDate}`;
         }
     }
-
+    // StorageManager クラス
+    // このクラスはローカルストレージとのデータのやり取りを管理します。
     class StorageManager {
         constructor() {
             this.storageKey = 'todoListTasks';
@@ -148,7 +151,8 @@
             return tasksJson ? JSON.parse(tasksJson) : [];
         }
     }
-
+    // TodoList クラス
+    // このクラスはタスクの管理と操作を担当します。
     class TodoList {
         constructor(dateFormatter, storageManager) {
             this.tasks = [];
@@ -211,7 +215,7 @@
             return null;
         }
     }
-
+// このクラスはDOMとの相互作用を管理します。
     class DOMInteractions {
         constructor(todoList) {
             this.todoList = todoList;
@@ -229,7 +233,7 @@
             });
             this.taskList.addEventListener('click', (e) => this.handleTaskListClick(e));
 
-            // 保存されたタスクを読み込んで表示
+// 保存されたタスクを読み込んで表示
             this.renderSavedTasks();
         }
 
